@@ -7,61 +7,93 @@ Project context for Claude Code sessions. Read alongside `README.md` and the
 
 Bayesian-observer + sequential-sampling modelling of a symbolic
 magnitude-comparison task (DNumRisk: 66 subjects, 33 control / 33 dyscalculic,
-~11.7k trials; "see n1, then n2, choose the larger"). Three response layers —
-static **choice**, **DDM**, **RDM** — over a shared bauer cognitive front-end,
-crossed with which parameters vary by group, to localise the dyscalculia
-deficit.
+~11.7k trials; "see n1, then n2, choose the larger"). The decision-maker
+repeatedly samples a perceptual posterior each step, so noisy perception lands
+in the drift rate. Response layers: static **choice**, **DDM** (drift = evidence
+difference), and **advantage RDM** (van Ravenzwaaij 2020; per-option
+accumulators, `w_0`/`w_d`/`w_s`). Everything lands in
+`notes/figures/overview_verdict.pdf`.
 
-**Settled finding:** dyscalculia = elevated number-encoding noise (~+30–35 % on
-n1), not a decision-policy or prior deficit. **Open / non-identifiable:**
-perceptual vs memory noise (a posterior ridge, r ≈ −0.81). Don't claim the
-perceptual/memory split is resolved. Details in `notes/CONCLUSIONS.md` and
-`notes/MODELS.md`.
+## The result (current — supersedes any older "ridge / not identifiable" notes)
 
-## The bauer version trap (read before touching the env or refitting)
+The **RDM** is the model to trust; the **DDM** does not fit (can't produce the
+magnitude effect; loses LOO by ~730, `bad-k 87`). On the RDM, dyscalculics show:
 
-There are **three** bauer branches in play locally; only one is "the science":
+- **A noisier number representation** (P = 1.00): perceptual noise 0.34 → 0.45;
+  **memory noise roughly doubles, 0.049 → 0.091** (the held first number is hit
+  hardest).
+- **A compensatory threshold increase** (`a` 0.50 → 0.65, P = 1.00) → they're
+  clearly slower but only slightly less accurate (calibrate-to-target-accuracy).
+- **Higher urgency** (`w_0` 0.31 → 0.40), a **slightly larger magnitude effect**
+  (`w_s`), and a **larger compression effect**.
 
-| Branch | Commit | Role |
-|---|---|---|
-| **`feature/rdm-fix-wd-default`** | **`e406694`** ("0.4.0", `__version__` 0.3.0) | ✅ **THE science version.** Every overview/registry model in `notes/MODELS.md` was fit with this (deployed on the cluster as `~/bauer-040` via `PYTHONPATH`). `environment.yml` pins this commit. |
-| `sv-memory-noise` | `600d668` (`__version__` 0.2.0) | Earlier laptop smoke-fits + recovery work. NOT the registry models. |
-| `feature/ddm-lapse` (`~/bauer-lapse`) | — | Superseded/invalid: lacked the `fit_w_d` toggle, so "w_d-fixed" runs there were silently w_d-free. Ignore. |
+Headline: **noisier → slower, with stronger (esp. memory) compression.** This is
+robust and is an improvement on the earlier draft. Do **not** repeat the old
+"perceptual vs memory is an unidentifiable ridge" framing — with the proper RDM
+the encoding split is informative (memory carries the bigger hit). Full numbers
+in `notes/CONCLUSIONS.md`; models in `notes/MODELS.md`.
 
-- `feature/rdm-fix-wd-default` ≠ the `v0.3.0` tag — they **diverged**. Do not
-  pin the tag or `main`; pin the commit (already done in `environment.yml`).
-- `bauer.utils.diagnostics.trim_stuck_chains` is referenced in the methods prose
-  but is **uncommitted upstream** and **unused by any analysis script** here.
-  If you commit it to bauer, do it on `feature/rdm-fix-wd-default`.
+## Hard-won methods lessons (save these for any future SSM project)
+
+These three took real time to find and each has a known fix:
+
+1. **The likelihood is brutally sensitive to contaminants** (DDM especially,
+   RDM too). A *single* trial out of ~12,000 — one impossibly-easy trial answered
+   wrong, or an RT shorter than the true `t0` — creates a ridge that stops NUTS
+   converging. (This is why Ratcliff et al. fit quantiles rather than the raw
+   likelihood.) **Fix:** a 5 % `p_outlier` contaminant — 5 % chance of a uniform
+   random response at a uniform random time. Same idea as Teulincx & Ratcliff
+   and as Michael Frank's hssm. (bauer's likelihoods come straight from **hssm**,
+   now an optional dependency.)
+2. **Use HalfNormal, not HalfCauchy, on the group SDs.** HalfCauchy's fat tail
+   allows unrealistically large SDs → an extreme funnel between group SD and
+   subject parameters that even NUTS can't traverse. Gelman moved off HalfCauchy
+   to HalfNormal for exactly this; so did we.
+3. **Fix `w_d = 1`.** Left free it's highly (not perfectly) collinear with the
+   noise SDs and won't converge — and if you fix n1/n2 SD but free `w_d`, the
+   model just finds a *slower* `w_d` for dyscalculics, which is nearly the same
+   thing as more noise per sample. Also keep `fit_v_scale=False` (perfect
+   `v_scale ↔ evidence_sd` degeneracy).
+
+## bauer version — use exactly v0.4.0
+
+The models live in **bauer**. The analyses were run with the immutable tag
+**`v0.4.0`** = `github.com/ruffgroup/bauer` @ `e406694` (tip of
+`feature/rdm-fix-wd-default`). `environment.yml` pins `@v0.4.0`.
+
+- ❌ Do **not** use `v0.3.0` or `main` — the 0.4.0 line is on a branch that
+  *diverged* from the release line; anything else is subtly different model code.
+- Quirk: the in-tree `__version__` on this commit still reads `0.3.0`; the
+  **tag** is authoritative.
 
 ## Where things live
 
-- **Input data** (`data/*.csv`): human-subjects, **gitignored**. The real input
-  is `data/magjudge_behavior_DNumRisk.csv`; everything reads from it.
+- **Input data** (`data/*.csv`): human-subjects, **gitignored**. Real input is
+  `data/magjudge_behavior_DNumRisk.csv`; everything reads from it.
 - **Traces** (`results/`, 41 GB): **gitignored**. On the cluster at
   `/shares/zne.uzh/gdehol/dyscalculic_ddm/model-<label>_trace.nc`.
-- **Committed summary**: `notes/data/overview.{json,npz}` (small, group-level) —
-  lets the overview figure regenerate locally without the traces.
-- **Figures**: `notes/figures/` (committed).
+- **Committed summary**: `notes/data/overview.{json,npz}` — lets the overview
+  figure regenerate locally with `plot_overview.py`, no traces needed.
 
 ## Cluster vs local (matches the global house rule)
 
-- **Fit + aggregate → cluster** (GPU L4, `bauer_cuda` env + `PYTHONPATH` to the
-  bauer-040 checkout): `fit_ddm.py` via `run_fit.sh`, then `collect_overview.py`.
-- **Plot + inspect → local**: `plot_overview.py`, `make_*.py`, `plot_*.py` read
-  the small summaries / traces and emit PDFs in `notes/figures/`.
+- **Fit + aggregate → cluster** (GPU L4, `bauer_cuda` env + the v0.4.0 bauer):
+  `fit_ddm.py` via `run_fit.sh`, then `collect_overview.py`.
+- **Plot + inspect → local**: `plot_overview.py` (and the recovery/diagnostic
+  scripts) read the small summaries and emit PDFs into `notes/figures/`.
 
 ## Conventions
 
 - `fit_ddm.py` holds `build_model(spec, df)` — a spec mini-language
   (`arch:param1,param2`, e.g. `rdm_nowd:perceptual_noise_sd,memory_noise_sd,a,t0`)
-  and the **cell-means** group parameterization (`random_regressors={p:'0 + C(group)'}`,
-  separate per-group mean AND between-subject SD). See `notes/MODELS.md §3`.
-- Standard fitting recipe (RT filter ≥ 0.20 s, `fit_v_scale=False`, `w_d` fixed,
-  `p_outlier=0.05`, halfnormal group-SD prior, numpyro vectorized) is in
-  `notes/MODELS.md §1`. Don't free `v_scale` (perfect degeneracy with
-  `evidence_sd`).
+  and the **cell-means** group parameterization (`random_regressors={p:'0 + C(group)'}`).
+  See `notes/MODELS.md §3–4`.
 - Most scripts have a runnable usage block in the top docstring — check it.
+- The repo is kept **lean**: only the figure pipeline (`fit_ddm`,
+  `collect_overview`, `plot_overview`, `figstyle`), the recovery harness
+  (`recover_bootstrap`, `aggregate_recovery`, `run_recover`), and the trace
+  diagnostics (`summarize_traces`, `group_contrasts`, `chain_diag`, `ridge_diag`).
+  Don't reintroduce one-off make_*/plot_* scripts; they live in git history.
 
 ## Git
 

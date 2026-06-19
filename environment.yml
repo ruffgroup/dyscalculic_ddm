@@ -1,13 +1,13 @@
 # Local / CPU env for the dyscalculic_ddm DDM fits.
-# The modelling heavy lifting lives in bauer; this env pins it to the EXACT
-# commit the analyses were run with (the `feature/rdm-fix-wd-default` tip,
-# informally "bauer 0.4.0"). For a cluster GPU env, install jax[cuda12] on a
-# GPU node instead of plain numpyro.
+# The modelling heavy lifting lives in bauer. This env pins it to the EXACT
+# version the analyses used: the immutable tag **bauer v0.4.0**. For a cluster
+# GPU env, install jax[cuda12] on a GPU node instead of plain numpyro.
 #
 #   conda env create -f environment.yml
 #
-# NOTE on the bauer pin: do NOT substitute the v0.3.0 tag or `main` — the
-# science models use a divergent branch. See README "Exact bauer version".
+# bauer v0.4.0 == github.com/ruffgroup/bauer @ commit e406694. Do NOT use
+# v0.3.0 or `main`; the 0.4.0 line lives on a divergent branch. The tag below
+# resolves to exactly the right commit. See README "Which bauer version".
 name: dyscalculic_ddm
 channels:
   - conda-forge
@@ -32,6 +32,6 @@ dependencies:
     - hssm
     - numpyro          # fast NUTS backend (backend='numpyro')
     - blackjax
-    # bauer itself (the models live here), pinned to the exact commit the
-    # analyses used: tip of feature/rdm-fix-wd-default ("0.4.0").
-    - git+https://github.com/ruffgroup/bauer.git@e40669494cb5e4a7a685a5f8ea07746967f10231
+    # bauer itself (the models live here), pinned to the exact analysis
+    # version via the immutable tag v0.4.0.
+    - git+https://github.com/ruffgroup/bauer.git@v0.4.0

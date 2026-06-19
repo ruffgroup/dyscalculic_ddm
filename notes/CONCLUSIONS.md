@@ -1,87 +1,85 @@
 # Dyscalculia magnitude-comparison modelling — conclusions
 
 Data: DNumRisk symbolic magnitude comparison, 66 subjects (33 control / 33
-dyscalc), ~11.7k trials. Models: Bayesian-observer front-end (bauer) with three
-response layers — static **choice**, **DDM**, **RDM** — crossed with which
-parameters vary by group; fit on GPU (numpyro, tune/draws 4000, 8 chains where
-needed). Convergence judged at the group level; a single stuck chain handled by
-`bauer.utils.diagnostics.trim_stuck_chains` (see methods note).
+dyscalculic), ~11.7k trials ("see n1, then n2, choose the larger"). Everything
+here is the dyscalc−control story summarised in
+[`figures/overview_verdict.pdf`](figures/overview_verdict.pdf); the model
+registry and fitting recipe are in [`MODELS.md`](MODELS.md).
 
-## What is robust (report these)
+## The model (one paragraph)
 
-1. **Behaviour (model-free).** Dyscalculics are **slower** (median RT +~0.15 s),
-   slightly **less accurate** (~−0.02), and show a **steeper magnitude /
-   compression effect** (P(chose n2) rises more steeply with n1).
-2. **Elevated number-encoding noise in dyscalculics** — credible in *every*
-   converged model and both accumulator architectures. This is the headline.
-3. **Not a decision-policy or expectation deficit.** Threshold `a` barely moves
-   (precise near-null in RDM, weak trend in DDM); the prior (`μ_p`, `σ_p`) does
-   **not** differ by group (all-free fits). It is a **noise** effect, as expected.
-4. **The compression is the regression-to-the-prior signature**, and in this
-   regime (encoding SD ≈ 0.2 ≪ prior SD ≈ 0.6) raising *either* perceptual or
-   memory noise widens the reliability gap `w₂−w₁` and **increases**
-   compression — so it does not, by itself, single out a noise component.
+The decision-maker repeatedly samples a **perceptual posterior** at every time
+step. Biased / noisy perception therefore lands in the **drift rate**: hard
+trials (small evidence difference) are slower. We fit two response layers on top
+of the same Bayesian-observer front-end (bauer):
 
-## What is NOT identifiable from this design
+- **DDM** (Ratcliff 1978; Ratcliff & McKoon 2008) — evidence is the *difference*
+  of the two repeatedly-sampled posterior means. No extra trial-to-trial
+  variability beyond the sampling mechanism itself.
+- **Advantage RDM** (van Ravenzwaaij et al. 2020) — each option has its own
+  accumulator. Drift = `w_0` (intercept → urgency) + `w_d`·(evidence
+  *difference*) + `w_s`·(evidence *sum*). `w_d ≡ 1` (fixed; see MODELS.md). The
+  `w_s`·sum term captures the **overall-magnitude effect**: people are faster
+  for larger numerosities, over and above difficulty.
 
-**Perceptual vs memory noise cannot be separated here.** Evidence:
-- The two are collinear in the joint fit (`r = −0.81`).
-- The attribution **flips with the response model**: choice-only → memory↑
-  (P=1.00); DDM/RDM → perceptual↑ (P≈0.97–1.00). With *both* on the corrected
-  KLW normalizer the split persists, so it is not the normalization bug (below).
-- **Either noise alone reproduces RT + accuracy + compression** about equally
-  (single-noise PPCs match the data within error).
-- ISI does **not** modulate the effect (known from prior work), so the
-  delay handle that would separate memory from perceptual is absent.
-- **Parameter recovery:**
-  - *Choice model (done, cross-model — fit to DDM-generated data):* returns
-    **memory↑ regardless of the generating truth** (perceptual-truth +0.26 →
-    recovered memory +0.39, P=0.96, perceptual null; memory-truth → memory
-    +0.67, P=1.00). So the static-choice "memory" verdict is **uninformative**
-    about which encoding component moved — it reports memory either way.
-  - *DDM within-model recovery (PENDING, cluster `recover_ponly`/`recover_monly`):*
-    the decisive test — does the DDM recover perceptual-truth→perceptual and
-    memory-truth→memory? Verdict to be inserted. This, not verbal reasoning,
-    settles whether the perceptual↔memory split is real or a ridge.
+**The RDM is the model to trust; the DDM is not.** The DDM cannot produce the
+magnitude effect (flat where the data slope — `overview_verdict.pdf` p8–9), and
+on LOO the RDM beats it by **Δelpd ≈ 730** with reliable Pareto-k, whereas the
+DDM is `bad-k 87 → LOO unreliable` (p10). Among RDM variants the noise
+decomposition (perceptual/memory vs n1/n2) barely changes fit (Δelpd < 5) — it
+is a reparameterization, not a better model.
 
-Bottom line: **dyscalculia = noisier number representation; which encoding
-component (perceptual vs memory) is underdetermined by this paradigm.**
+## The result — dyscalculia is a noisier number representation
 
-## Why the split flips (mechanism, understood)
+All numbers below are the RDM (natural units, dyscalc vs control; P = P(Δ>0)
+from `overview_verdict.pdf` p1, p5).
 
-Choices carry the *compression*, which the static observer can only produce via
-the memory (asymmetry) term → choice→memory. The accumulator models also fit
-**RT**, which credibly supports raising the common (perceptual) term; given the
-collinearity, the joint DDM/RDM then credits perceptual and squeezes memory to
-null. Both are "correct" within their likelihood — it is a ridge, not a
-dissociation.
+1. **Elevated encoding noise — the headline, and it is robust (P = 1.00).**
+   - Perceptual noise SD: **0.34 → 0.45**.
+   - Memory noise SD: **0.049 → 0.091 — it roughly doubles.** They are generally
+     much noisier, but *even more so for the held-in-memory first number.*
+2. **A compensatory threshold increase (P = 1.00).** Decision threshold
+   `a`: **0.50 → 0.65**. Reduced effective drift would, alone, make them both
+   slower *and* much less accurate; instead they raise the threshold (the
+   well-known calibrate-to-a-target-accuracy strategy), so they end up **clearly
+   slower but only slightly less accurate** — exactly the raw behaviour.
+3. **Higher urgency (P = 0.99).** Baseline drift `w_0`: **0.31 → 0.40** — as if
+   more worried about not responding in time.
+4. **A slightly larger magnitude effect (P = 0.91).** Sum term `w_s`:
+   **0.063 → 0.087**.
+5. **A larger compression effect.** Lower reliability weights
+   `w = σ_p²/(σ_p²+σ_e²)` and a wider `w₂−w₁` gap → more regression to the prior,
+   more so in dyscalc (Δgap P = 0.80–0.93, p4). Compression rises because the
+   representation is noisier.
+6. **Non-decision time `t0` does not differ** (0.38 vs 0.36) and the **observer
+   prior is shared** (fixed to the stimulus distribution, σ_p = 0.59).
 
-## Methods findings worth keeping
+**Model-free behaviour it explains.** Dyscalculics are slightly slower and
+slightly less accurate. That smells like reduced drift — but the threshold
+compensation is why the accuracy cost stays small while RT clearly rises. The
+RDM PPCs reproduce the psychometric curves, the RT×difficulty slope, and the
+RT×magnitude slope for both groups (p7–9).
 
-- **Static-choice noise normalization bug** (`notes/choice_vs_ddm_decision_noise_inconsistency.md`):
-  the static model used raw `evidence_sd`; KLW/DDM-consistent is
-  `posterior_mean_sd`. Fixed behind `consistent_choice_noise` on branch
-  `choice-noise-normalization`. (It shrinks the effects slightly but does **not**
-  resolve the perceptual/memory split.)
-- **Single-stuck-chain recovery** (`trim_stuck_chains`, notes §4b): every "soft"
-  DDM cell was one stray chain (often *high*-lp, a sharp minor mode — do not gate
-  on lp); trimming recovers r̂≈1.00, ESS in the thousands. The DDM **is**
-  recoverable.
+## Recoverability (`figures/recovery_cloud.pdf`)
 
-## The one path left to separate perceptual vs memory (future work)
+Cross-recovery on 100 synthetic datasets simulated at realistic accuracy
+(≈ 0.85), refit, comparing true vs recovered perceptual/memory Δ:
 
-bauer's DDM/RDM put **both** encoding noises into the drift SNR symmetrically,
-with no across-trial drift variability — so they *cannot* distinguish:
-- **perceptual = within-trial** noise on the still-visible n2 → *reducible* by
-  accumulation → costs RT, not asymptotic accuracy;
-- **memory = across-trial** offset on the held n1 (a fixed degraded trace) →
-  *irreducible* → acts as **drift variability (`sv`)** → hits accuracy and
-  **produces slow errors**.
+- **Static choice:** converges easily (98/100) but perceptual and memory Δ
+  **leak into each other** (off-diagonal r ≈ −0.4) — choices alone can't cleanly
+  separate the two encoding components.
+- **DDM:** converges in only **24/100** refits and recovers the split poorly —
+  another reason not to lean on the DDM.
 
-These have **distinct RT-distribution signatures** (across-trial `sv` → slow
-errors), and we already observed the current model **underfits the slow-error
-QPP wing** — the unmodelled signature. A model with **memory→`sv`,
-perceptual→within-trial** is therefore the principled route to identifiability,
-motivated by an observed misfit. It requires a new (drift-variability)
-likelihood in bauer. Design lever for a future experiment: manipulate the n1→n2
-**delay** over a wider range (memory should grow with delay; perceptual not).
+The clean recoverability check for the **RDM** perceptual/memory split (the model
+we actually report) is the recommended next analysis; `recover_bootstrap.py` +
+`aggregate_recovery.py` is the harness for it.
+
+## Bottom line
+
+Dyscalculia = a **noisier number representation** — most sharply an elevated
+*memory* noise on the held first number (≈ doubled) — which (i) slows responses,
+(ii) is compensated by a higher decision threshold so accuracy drops only
+slightly, and (iii) produces stronger regression-to-the-prior compression. The
+RDM, with its urgency (`w_0`) and magnitude (`w_s`) terms, fits this cleanly;
+the DDM does not.

@@ -7,28 +7,75 @@ DNumRisk dataset: 66 subjects, 33 control / 33 dyscalculic, ~11.7k trials —
 layers — static **choice**, **drift-diffusion (DDM)**, and **race-diffusion
 (RDM)** — to ask *where* the dyscalculia deficit sits.
 
-## The headline result (so you don't have to reverse-engineer it)
+---
 
-**Dyscalculia = a noisier number representation.** Elevated number-encoding
-noise (≈ +30–35 % on the held first number, n1) is credible in *every*
-converged model and both accumulator architectures. It is **not** a
-decision-policy deficit (threshold `a` barely moves) and **not** a prior /
-expectation deficit (the observer prior does not differ by group).
+## ⚠️ Which bauer version — read this first
 
-**What this design *cannot* settle:** perceptual vs memory noise are not
-separately identifiable here (posterior ridge, r ≈ −0.81; the attribution
-flips with the response model). Report the noise deficit, not the
-perceptual/memory split. Full reasoning and the one path forward are in
-[`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md).
+The models live in **bauer**, and the analyses depend on a specific version.
+Use exactly this one:
+
+> ### **bauer `v0.4.0`** — github.com/ruffgroup/bauer, tag `v0.4.0`
+
+`environment.yml` already pins it, so `conda env create -f environment.yml`
+just works. To install/upgrade by hand:
+
+```bash
+pip install --force-reinstall "git+https://github.com/ruffgroup/bauer.git@v0.4.0"
+```
+
+- ✅ The `v0.4.0` tag is **public and immutable** — it always resolves to the
+  exact commit (`e406694`) the analyses were run with.
+- ❌ Do **not** use `v0.3.0`, `main`, or any branch name. The 0.4.0 line lives
+  on a branch that *diverged* from the release line, so anything else gives you
+  subtly different model code. (Quirk: the in-tree `__version__` string on this
+  commit still reads `0.3.0` — ignore it; the `v0.4.0` **tag** is authoritative.)
+
+---
+
+## The key figure: `notes/figures/overview_verdict.pdf`
+
+This single multi-page PDF is **the** output everything hangs on — the
+dyscalc−control contrast for every parameter, in two noise decompositions, with
+posterior-predictive checks (psychometric, RT, QPP), per-group SDs, and LOO
+model comparison. **It is committed in this repo**, so you have it the moment
+you clone.
+
+To **regenerate it locally** (no cluster, no 41 GB of traces needed — the small
+group-level summary it's built from is committed):
+
+```bash
+python plot_overview.py        # reads notes/data/overview.{json,npz}
+                               # writes notes/figures/overview_verdict.pdf
+```
+
+## What the figure shows
+
+The model to trust is the **advantage race diffusion model (RDM)**; the DDM
+can't reproduce the magnitude effect and loses on LOO by ~730 (p8–10). On the
+RDM, dyscalculics show:
+
+- **A noisier number representation** (P = 1.00): perceptual noise 0.34 → 0.45;
+  **memory noise roughly doubles, 0.049 → 0.091** — the held first number is hit
+  hardest.
+- **A compensatory threshold increase** (`a` 0.50 → 0.65, P = 1.00): so in raw
+  behaviour they're clearly slower but only *slightly* less accurate.
+- **Higher urgency** (`w_0`), a **slightly larger magnitude effect** (`w_s`), and
+  a **larger compression effect** (more regression to the prior).
+
+One line: **noisier → slower, with stronger compression, especially in memory.**
+
+For the full reasoning and numbers, read
+[`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md) and
+[`notes/MODELS.md`](notes/MODELS.md) — those notes are the source of truth and
+move faster than this README.
 
 ## Where to start reading
 
 | Read this | For |
 |---|---|
-| [`notes/BRIEF_FOR_MAIKE.md`](notes/BRIEF_FOR_MAIKE.md) | **Start here** — a one-page orientation + handover. |
-| [`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md) | What's robust, what isn't identifiable, and why. |
-| [`notes/MODELS.md`](notes/MODELS.md) | The model registry, the fitting recipe, the derived quantities. |
-| [`notes/ddm_fitting_notes_for_team.md`](notes/ddm_fitting_notes_for_team.md) | The DDM convergence/geometry problem and what to try. |
+| [`notes/BRIEF_FOR_MAIKE.md`](notes/BRIEF_FOR_MAIKE.md) | **Start here** — one-page orientation + how to get the key figure. |
+| [`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md) | The verdict: what's robust, what's still open. |
+| [`notes/MODELS.md`](notes/MODELS.md) | Model registry, the fitting recipe, the derived quantities. |
 | `notes/figures/overview_verdict.pdf` | The summary figure all the conclusions hang on. |
 
 ## Repository layout
@@ -38,11 +85,15 @@ fit_ddm.py            build_model(spec, df) + fit; the spec mini-language.   [cl
 run_fit.sh            SLURM wrapper for fit_ddm.py.                          [cluster]
 collect_overview.py   aggregate traces -> notes/data/overview.{json,npz}.    [cluster]
 plot_overview.py      render notes/figures/overview_verdict.pdf.             [local]
-recover_bootstrap.py  parameter-recovery harness (+ run_recover.sh).         [cluster]
-make_*.py / plot_*.py figure + PPC + diagnostic scripts.                     [local]
-sim_*.py              compression / perceptual-vs-memory simulations.
-notes/                conclusions, model registry, figures, methods notes.
-data/        (gitignored) input behavioural CSVs — see "Get the data".
+recover_bootstrap.py  parameter-recovery harness (+ run_recover.sh,         [cluster]
+aggregate_recovery.py   aggregate_recovery.py -> recovery_cloud.pdf).
+summarize_traces.py   trace diagnostics: convergence / contrasts / ridge.   [cluster]
+group_contrasts.py
+chain_diag.py
+ridge_diag.py
+figstyle.py           shared plotting style (imported by the plotters).
+notes/                CONCLUSIONS, MODELS, the brief, and the two key figures.
+data/        (gitignored) input behavioural CSV — see "Get the data".
 results/     (gitignored) 41 GB of posterior traces — see "Get the traces".
 ```
 
@@ -51,63 +102,26 @@ Most scripts carry a usage block in their top docstring; read it before running.
 ## Setup
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yml     # installs bauer v0.4.0 (see top)
 conda activate dyscalculic_ddm
 ```
 
-This installs **the exact bauer the analyses used** (pinned by commit; see
-below). On a cluster GPU node, install `jax[cuda12]` in the env instead of the
-CPU numpyro.
-
-### Exact bauer version (important)
-
-The science models were fit with bauer at the **tip of branch
-`feature/rdm-fix-wd-default`** — commit
-[`e406694`](https://github.com/ruffgroup/bauer/commit/e40669494cb5e4a7a685a5f8ea07746967f10231),
-informally "bauer 0.4.0". `environment.yml` pins this commit directly.
-
-> ⚠️ Do **not** use the `v0.3.0` git tag or `main`. That branch *diverged*
-> from the release line (the tag is not an ancestor of this commit, and the
-> in-tree `__version__` still reads `0.3.0`). Pulling the tag would give you
-> subtly different model code. Pin the commit.
-
-To install/upgrade bauer to the pinned version by hand:
-
-```bash
-pip install --force-reinstall \
-  "git+https://github.com/ruffgroup/bauer.git@e40669494cb5e4a7a685a5f8ea07746967f10231"
-```
-
-Minor caveat: one diagnostics helper (`bauer.utils.diagnostics.trim_stuck_chains`,
-used only in the *methods prose* for single-stuck-chain recovery) is not yet
-committed upstream. No analysis script imports it; it does not affect
-reproducing the models.
+On a cluster GPU node, install `jax[cuda12]` in the env instead of the CPU numpyro.
 
 ## Get the data
 
-The behavioural CSVs are human-subjects data and are **not** in this public
-repo. Ask Gilles for:
-
-```
-data/magjudge_behavior_DNumRisk.csv        # raw, 66 subjects (the input everything reads)
-data/magjudge_behavior_subjectwise.csv     # convenience subject-indexed copy
-```
-
-Drop them into `data/`. (The `data/synth_*.csv` files are generated by the
-`sim_*` / `recover_*` scripts — you don't need them to start.)
+The behavioural CSV is human-subjects data and is **not** in this public repo.
+Ask Gilles for `data/magjudge_behavior_DNumRisk.csv` (raw, 66 subjects — the
+input everything reads) and drop it into `data/`.
 
 ## Get the traces (optional)
 
-Fitting is expensive; the 41 GB of posterior traces live on the cluster, not in
-git. To work with existing fits instead of refitting:
+Only needed if you want to **refit or re-aggregate** rather than just re-plot
+the committed figure. The 41 GB of posterior traces live on the cluster:
 
 ```bash
 rsync -a sciencecluster:/shares/zne.uzh/gdehol/dyscalculic_ddm/ results/
 ```
-
-The plotting scripts read from `results/` and from `notes/data/overview.{json,npz}`
-(the small group-level summary, which *is* committed — so you can regenerate the
-overview figure locally without the traces).
 
 ## Reproduce, end to end
 
@@ -119,10 +133,10 @@ sbatch --gres=gpu:L4:1 --job-name=dyscalc_group run_fit.sh ddm_group
 # 2. AGGREGATE (cluster) — reduce the traces to one small summary.
 python collect_overview.py        # -> notes/data/overview.{json,npz}
 
-# 3. PLOT (local) — render the figure from the summary.
+# 3. PLOT (local) — render the key figure from the summary.
 python plot_overview.py           # -> notes/figures/overview_verdict.pdf
 ```
 
-The split is deliberate: **fit + aggregate on the cluster** (large traces,
-GPU), **plot + inspect locally** (small summaries). See `notes/MODELS.md §6`
-for the per-script role table.
+The split is deliberate: **fit + aggregate on the cluster** (large traces, GPU),
+**plot + inspect locally** (small summaries). See `notes/MODELS.md §6` for the
+per-script role table.

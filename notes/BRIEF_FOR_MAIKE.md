@@ -2,34 +2,51 @@
 
 Hi Maike — this is the magnitude-comparison modelling project (DNumRisk: 66
 subjects, 33 control / 33 dyscalculic, "see n1, then n2, choose the larger").
-Everything is now on GitHub at **`github.com/ruffgroup/dyscalculic_ddm`** so you
-can clone it and run the analyses yourself. Below is the fastest path in.
+Everything is on GitHub at **`github.com/ruffgroup/dyscalculic_ddm`**. This page
+gets you to the result fast.
 
-## TL;DR of the science
+## The one thing to look at: `notes/figures/overview_verdict.pdf`
 
-- **Robust finding:** dyscalculia = a **noisier number representation** —
-  elevated number-encoding noise (≈ +30–35 % on the held first number, n1),
-  credible in *every* converged model and both accumulator architectures.
-- **Not** a decision-policy deficit (threshold `a` barely moves) and **not** a
-  prior/expectation deficit (the observer prior doesn't differ by group).
-- **What this paradigm can't settle:** perceptual vs memory noise aren't
-  separately identifiable here — they sit on a posterior ridge (r ≈ −0.81) and
-  the attribution flips depending on the response model. So: report the noise
-  deficit, *not* a perceptual-vs-memory split.
-- **The one way forward** (future work / new model): make memory noise act as
-  across-trial drift variability (Ratcliff `sv`) while perceptual noise stays
-  within-trial — they then have distinct RT-distribution signatures. Motivated
-  by an observed misfit (the slow-error QPP wing). See `CONCLUSIONS.md`.
+That 10-page PDF **is** the result — it's committed, so you have it the moment
+you clone. To regenerate it yourself (no cluster, no big files — the group-level
+summary it's built from is committed):
 
-## What to read, in order
+```bash
+python plot_overview.py     # reads notes/data/overview.{json,npz}
+                            # writes notes/figures/overview_verdict.pdf
+```
 
-1. `notes/CONCLUSIONS.md` — the verdict: what's robust, what's not identifiable,
-   why the perceptual/memory attribution flips, and the path forward.
-2. `notes/MODELS.md` — the model registry (what each `model-*_trace.nc` is), the
-   exact fitting recipe, and the derived quantities behind the figures.
-3. `notes/figures/overview_verdict.pdf` — the one figure the conclusions rest on.
-4. `notes/ddm_fitting_notes_for_team.md` — if you'll touch convergence: the DDM
-   geometry/ridge problem and what to try (start with `dense_mass=True`).
+Read [`CONCLUSIONS.md`](CONCLUSIONS.md) alongside it (the verdict, with numbers)
+and [`MODELS.md`](MODELS.md) (what each model in the figure is).
+
+## The story (and it's robust — it improves on the older draft)
+
+We model the decision-maker as repeatedly sampling a **perceptual posterior**
+each time step, so noisy perception lands in the **drift rate** (hard trials are
+slower). The model that fits is the **advantage race diffusion** (van
+Ravenzwaaij 2020), not the DDM — the DDM can't reproduce the magnitude effect
+and loses on LOO by ~730 (figure p8–10). On the RDM:
+
+- **Dyscalculics have a noisier number representation** (P = 1.00). Perceptual
+  noise 0.34 → 0.45; **memory noise roughly doubles, 0.049 → 0.091** — the held
+  first number is hit hardest.
+- **They compensate with a higher decision threshold** (0.50 → 0.65, P = 1.00).
+  That's why in raw behaviour they're clearly slower but only *slightly* less
+  accurate (calibrating to a target accuracy).
+- **Higher urgency** (`w_0` 0.31 → 0.40) and a **slightly larger magnitude
+  effect** (`w_s`), and a **larger compression effect** (more regression to the
+  prior, because they're noisier).
+
+Headline in one line: **noisier → slower, with stronger compression, especially
+in memory.**
+
+## Recoverability
+
+`notes/figures/recovery_cloud.pdf` shows the parameter-recovery work: the static
+choice model leaks perceptual↔memory, and the DDM converges in only 24/100
+synthetic refits — both reasons we report the RDM. A clean RDM perceptual/memory
+recovery is the natural next check; the harness is `recover_bootstrap.py` +
+`aggregate_recovery.py`.
 
 ## Getting set up
 
@@ -40,36 +57,21 @@ conda env create -f environment.yml      # installs the exact bauer (see below)
 conda activate dyscalculic_ddm
 ```
 
-Two things are deliberately **not** in the repo — ask Gilles for both:
+The **behavioural data** is human-subjects data and is not in the repo — ask
+Gilles for `data/magjudge_behavior_DNumRisk.csv` and drop it into `data/`. The
+41 GB of posterior traces are only needed if you want to *refit* (they live on
+the cluster: `rsync -a sciencecluster:/shares/zne.uzh/gdehol/dyscalculic_ddm/ results/`).
 
-- **The behavioural data** (`data/magjudge_behavior_DNumRisk.csv`, human
-  subjects) — drop it into `data/`. Everything reads from this file.
-- **The posterior traces** (41 GB) — only needed if you want to re-plot rather
-  than refit. They're on the cluster:
-  `rsync -a sciencecluster:/shares/zne.uzh/gdehol/dyscalculic_ddm/ results/`
+## bauer version — use exactly this
 
-The small group-level summary (`notes/data/overview.{json,npz}`) *is* in the
-repo, so `python plot_overview.py` regenerates the overview figure without the
-traces.
+The models live in **bauer**, pinned in `environment.yml` to the immutable tag
+**`v0.4.0`** (= `github.com/ruffgroup/bauer` @ `e406694`). Don't substitute
+`v0.3.0` or `main` — the 0.4.0 line is on a divergent branch and anything else
+gives subtly different model code. The env file handles it; to install by hand:
+`pip install "git+https://github.com/ruffgroup/bauer.git@v0.4.0"`.
 
-## The exact bauer version (so your fits match mine)
-
-`environment.yml` pins bauer to commit `e406694` (the tip of branch
-`feature/rdm-fix-wd-default`, informally "0.4.0"). **Please don't swap in the
-`v0.3.0` tag or `main`** — that branch diverged and you'd get subtly different
-model code. The pin handles this automatically; just create the env from the
-file. (One diagnostics helper used only in methods prose isn't committed
-upstream, but no analysis needs it.)
-
-## Reproduce, end to end
-
-```bash
-# FIT (cluster GPU):  sbatch --gres=gpu:L4:1 run_fit.sh ddm_group
-# AGGREGATE (cluster): python collect_overview.py   -> notes/data/overview.*
-# PLOT (local):        python plot_overview.py       -> overview_verdict.pdf
-```
-
-Rule of thumb: **fit + aggregate on the cluster, plot + inspect locally.** Most
-scripts have a usage block in their top docstring.
+The hard-won fitting gotchas (contaminant model, HalfNormal priors, fixing
+`w_d`) that make these models converge at all are written up in
+[`../CLAUDE.md`](../CLAUDE.md) — worth a read before you refit anything.
 
 Shout if anything doesn't run — happy to walk through it.
