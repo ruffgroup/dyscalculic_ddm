@@ -85,8 +85,9 @@ fit_ddm.py            build_model(spec, df) + fit; the spec mini-language.   [cl
 run_fit.sh            SLURM wrapper for fit_ddm.py.                          [cluster]
 collect_overview.py   aggregate traces -> notes/data/overview.{json,npz}.    [cluster]
 plot_overview.py      render notes/figures/overview_verdict.pdf.             [local]
-recover_bootstrap.py  parameter-recovery harness (+ run_recover.sh,         [cluster]
-aggregate_recovery.py   aggregate_recovery.py -> recovery_cloud.pdf).
+recover_bootstrap.py  parameter-recovery harness (run on the cluster via     [cluster]
+aggregate_recovery.py   run_recover.sh; commands in notes/CONCLUSIONS.md).
+run_recover.sh
 summarize_traces.py   trace diagnostics: convergence / contrasts / ridge.   [cluster]
 group_contrasts.py
 chain_diag.py

@@ -60,20 +60,35 @@ compensation is why the accuracy cost stays small while RT clearly rises. The
 RDM PPCs reproduce the psychometric curves, the RT×difficulty slope, and the
 RT×magnitude slope for both groups (p7–9).
 
-## Recoverability (`figures/recovery_cloud.pdf`)
+## Parameter recovery — how to run it (not yet done for the RDM)
 
-Cross-recovery on 100 synthetic datasets simulated at realistic accuracy
-(≈ 0.85), refit, comparing true vs recovered perceptual/memory Δ:
+No recovery check has been run for the **RDM**, the model we report, so treat the
+perceptual/memory split as model-based, **not yet recovery-validated**. (Old
+choice/DDM bootstrap reps under `results/recover_boot/` predate the current
+recipe — short chains, no contaminant, HalfCauchy priors — back when the DDM
+mixed badly. With the 5% `p_outlier` contaminant and HalfNormal group-SD priors,
+**the DDM converges fine now**; those reps are obsolete and are not shipped. Note
+the DDM is the wrong model because it *fits* poorly, not because it fails to
+converge.)
 
-- **Static choice:** converges easily (98/100) but perceptual and memory Δ
-  **leak into each other** (off-diagonal r ≈ −0.4) — choices alone can't cleanly
-  separate the two encoding components.
-- **DDM:** converges in only **24/100** refits and recovers the split poorly —
-  another reason not to lean on the DDM.
+To run a fresh recovery with the current recipe (full step-by-step in
+[`recovery_howto.md`](recovery_howto.md); `recover_bootstrap.py` +
+`aggregate_recovery.py` are the harness):
 
-The clean recoverability check for the **RDM** perceptual/memory split (the model
-we actually report) is the recommended next analysis; `recover_bootstrap.py` +
-`aggregate_recovery.py` is the harness for it.
+```bash
+# 1. Cluster: 100 parametric-bootstrap reps from the RDM posterior (1 array task = 1 rep)
+sbatch --array=0-99%16 --gres=gpu:L4:1 --job-name=dys_rec_rdm \
+    run_recover.sh rdm /shares/zne.uzh/gdehol/dyscalculic_ddm/model-rdm_group_trace.nc
+#    -> results/recover_boot/rdm_rep*.csv
+
+# 2. Locally: aggregate into the cross-recovery cloud
+python aggregate_recovery.py --models rdm     # -> notes/figures/recovery_cloud.pdf
+```
+
+Each rep draws a "plausible truth" from the real-data posterior, simulates a
+dataset on the real paradigm, refits the same model class, and records
+true-vs-recovered group Δ per parameter (self-recovery on the diagonal, leakage
+off it).
 
 ## Bottom line
 

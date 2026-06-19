@@ -40,13 +40,14 @@ and loses on LOO by ~730 (figure p8–10). On the RDM:
 Headline in one line: **noisier → slower, with stronger compression, especially
 in memory.**
 
-## Recoverability
+## Parameter recovery (to-do)
 
-`notes/figures/recovery_cloud.pdf` shows the parameter-recovery work: the static
-choice model leaks perceptual↔memory, and the DDM converges in only 24/100
-synthetic refits — both reasons we report the RDM. A clean RDM perceptual/memory
-recovery is the natural next check; the harness is `recover_bootstrap.py` +
-`aggregate_recovery.py`.
+We haven't run a recovery check for the RDM yet, so the perceptual/memory split
+is model-based, not recovery-validated. The harness is in the repo and
+[`recovery_howto.md`](recovery_howto.md) is a step-by-step outline for running it
+(a cluster array via `run_recover.sh`, then `aggregate_recovery.py`). Older
+choice/DDM reps predate the contaminant/HalfNormal fixes — back when the DDM
+mixed badly — and aren't shipped.
 
 ## Getting set up
 
