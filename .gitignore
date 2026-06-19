@@ -1,0 +1,21 @@
+# --- Large model output (lives on the cluster, NOT in git) -----------------
+# 41 GB of posterior traces; rsync them from
+#   sciencecluster:/shares/zne.uzh/gdehol/dyscalculic_ddm/
+results/
+
+# --- Human-subjects behavioural data (shared separately, not public) -------
+# Drop these into data/ by hand (see README "Get the data").
+data/*.csv
+data/*.parquet
+data/*.tsv
+
+# --- Notebooks: keep the jupytext .py pair, not the rendered .ipynb --------
+# (rendered cells can embed per-subject tables; the .py is code-only)
+*.ipynb
+.ipynb_checkpoints/
+
+# --- Local tooling / OS junk -----------------------------------------------
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
