@@ -229,10 +229,17 @@ misreading magnitudes across rows.
 
 ## `supp_rt_by_n1_group.{pdf,png}`
 
-**Script also missing**, same situation as `supp_ddm_vs_rdm` above
-(created 2026-08-17 12:52, nothing in git history, working tree, or shell
-history). Not yet rebuilt — nobody has asked for this one yet. Flagging
-here so it isn't mistaken for "fine" just because nobody's raised it.
+`plot_supp_rt_by_n1_group.py` (repo root, committed) ←
+`data/magjudge_behavior_DNumRisk.csv` (gitignored, human-subjects). Model-free.
+
+**Reconstruction (2026-11-12).** The original script (figure created
+2026-08-17 12:52) was never committed and could not be found. The rebuilt
+script reverse-engineers its recipe: 8 global quantile bins of log(n2/n1)
+(`pd.qcut` over all trials), x = mean log(n2/n1) per bin, y = median RT
+pooled over trials per (group, n1, bin). All 80 cell values match the
+original figure to the plotted precision, including the two cells absent
+for n1 = 5 and n1 = 7 (no trials in those bins). Only cosmetic differences
+(house font sizes).
 
 ## `rdm_priors_revised.docx` (new, 2026-08-25)
 
