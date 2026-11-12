@@ -67,6 +67,64 @@ prior. (n1 is weighted below n2 → n1 is compressed more.)
 Result: r̂ ≈ 1.00, min ESS ~1.5k–3.8k, ~0 divergences for all RDM/choice fits.
 (The DDM samples cleanly too but **fits the data poorly** — see CONCLUSIONS.md.)
 
+**Group-level priors, as actually built** (bauer v0.4.0; verified 2026-08-25 by
+introspecting `estimation_model.free_RVs` of the two reported specs, not read
+off the source). Everything below is on the **pre-transform (link) scale**;
+`a`/`t0`/`w_0`/`perceptual_noise_sd`/`memory_noise_sd` are softplus-transformed
+after the design-matrix product, `w_s` has an identity link.
+
+| Node | Prior in the reported (cell-means) fits |
+|---|---|
+| `{p}_mu` (population mean, per group) | `Normal(0, 1)` for **every** parameter and both groups |
+| `{p}_sd` (between-subject τ, per group) | `HalfNormal(σ = [0.25 control, 0.10 dyscalc])` for `perceptual_noise_sd` / `memory_noise_sd`; `HalfNormal([0.25, 0.25])` for `a`, `t0`, `w_0`, `w_s` |
+| `{p}_offset` | `Normal(0, 1)` |
+
+Two traps this table exists to prevent:
+
+1. **Half-normal, not half-Cauchy.** `BaseModel.group_sd_dist` defaults to
+   `'halfnormal'` from bauer 0.3.0 on, and `_group_sd_rv` builds
+   `pm.HalfNormal(name, sigma=scale)`. The `--halfnormal` flag in `fit_ddm.py`
+   only re-asserts the default. Any methods text citing Gelman (2006) for a
+   half-Cauchy group-SD prior is describing the pre-0.3.0 behaviour, not these
+   fits.
+2. **The `mu_intercept` / `sigma_intercept` values are NOT the priors here.**
+   `RaceMixin.get_free_parameters()` sets `a` → 0.54, `t0` → −1.51,
+   `w_0` → 2.41 with `sigma_intercept` 0.3/0.5/0.5, and the magnitude front-end
+   sets `mu_intercept` −1 for both noise SDs. The regression path
+   (`RegressionMixin.build_hierarchical_nodes`) applies those to column 0
+   **only when that column is literally named `Intercept`**. With
+   `random_regressors={p: '0 + C(group)'}` the columns are
+   `C(group)[control]` / `C(group)[dyscalc]`, so the branch never fires and all
+   cells fall back to `Normal(0, sigma_regressors=1)`.
+
+The same "column 0 is the intercept" assumption explains the asymmetric τ
+prior: `cauchy_sigma[0]` is unconditionally set to `cauchy_sigma_intercept`
+(0.25), while later columns get `cauchy_sigma_regressors`, which the magnitude
+front-end tightens to 0.1 for the two noise SDs (`TIGHT_SLOPE`). Control
+inherits the intercept scale, dyscalc the slope scale. It is an artifact of the
+parameterization, not a deliberate choice, and it is worth knowing that the
+posterior τ for memory noise (control 0.65, dyscalc 0.35, P = 0.03 in
+`supp_rdm_params` row 3) is the one result that sits closest to it. Group
+**means**, and therefore every headline contrast, are on symmetric priors.
+
+**Trial exclusion accounting.** The task gives no "too late" or
+correct/incorrect feedback of any kind (checked `trial_magJudge.py` end to
+end). Trials with no recorded response aren't logged with a missing RT —
+they're simply absent: `numrisk/behavior_magjudge/utils.py::get_data()`
+computes `rt = onset(choice) − onset(stimulus 2)`, which is `NaN` when no
+key was pressed, and an unqualified `df.dropna()` there (commented only as
+"removes subs without group assignment") silently drops those rows too. Of
+the full 3-run design (66 participants × 180 trials = 11,880), **212 trials
+(1.8%) have no logged response** and are already gone before this project's
+CSV exists (per-subject counts run 149–180; no subject near a round
+fraction like ~120, so this reads as scattered single-trial omissions, not
+dropped runs). The `rt ≥ 0.20 s` filter above removes a further 3 trials,
+leaving the 11,665 analysed. The `p_outlier` contaminant mixture is a
+separate mechanism — it reweights trials that *do* have a recorded
+`(rt, choice)` (occasional fast guesses/lapses); it cannot and does not
+touch these 212 trials, since there's no `rt` for either likelihood term to
+evaluate.
+
 ## 5. The 10 pages of `overview_verdict.pdf`
 
 1–2. Parameter contrasts (dyscalc−ctrl) per model, shared and n1/n2

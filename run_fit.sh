@@ -53,6 +53,12 @@ else
 fi
 
 export PYTHONUNBUFFERED=1
+# bauer_cuda's installed `bauer` package is an editable link to ~/git/bauer,
+# a checkout shared with other projects (e.g. shevlin_reanalysis) that gets
+# moved off the v0.4.0 lineage for their own work. PYTHONPATH here shadows
+# that with a dedicated, immutable-pinned v0.4.0 checkout so fits don't
+# silently run against the wrong model code. See CLAUDE.md "bauer version".
+export PYTHONPATH="$HOME/bauer-030"
 PY="$HOME/data/conda/envs/$ENV_NAME/bin/python"
 
 cd "$REPO"

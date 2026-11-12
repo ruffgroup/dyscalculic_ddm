@@ -7,6 +7,15 @@ DNumRisk dataset: 66 subjects, 33 control / 33 dyscalculic, ~11.7k trials —
 layers — static **choice**, **drift-diffusion (DDM)**, and **race-diffusion
 (RDM)** — to ask *where* the dyscalculia deficit sits.
 
+The behavioural data this repo analyses is produced by
+[`numrisk`](https://github.com/mrenke/numrisk) (Maike Renke) — see
+`notes/MODELS.md` §4 for exactly how, including a trial-exclusion accounting
+issue found in its raw-log→behaviour pipeline. This repo's full analysis
+code (everything paper-relevant here) is also merged into
+[`ruffgroup/numrisk_dyscalculic_ddm`](https://github.com/ruffgroup/numrisk_dyscalculic_ddm),
+a fork of `numrisk` with this project added as a `dyscalculic_ddm/`
+subdirectory — that's the integrated copy to point collaborators at.
+
 ---
 
 ## ⚠️ Which bauer version — read this first
@@ -73,8 +82,7 @@ move faster than this README.
 
 | Read this | For |
 |---|---|
-| [`notes/BRIEF_FOR_MAIKE.md`](notes/BRIEF_FOR_MAIKE.md) | **Start here** — one-page orientation + how to get the key figure. |
-| [`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md) | The verdict: what's robust, what's still open. |
+| [`notes/CONCLUSIONS.md`](notes/CONCLUSIONS.md) | **Start here** — the verdict: what's robust, what's still open. |
 | [`notes/MODELS.md`](notes/MODELS.md) | Model registry, the fitting recipe, the derived quantities. |
 | `notes/figures/overview_verdict.pdf` | The summary figure all the conclusions hang on. |
 

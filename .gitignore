@@ -19,3 +19,6 @@ data/*.tsv
 __pycache__/
 *.pyc
 .DS_Store
+
+# --- Office lock files (created while a docx/xlsx is open, not content) ----
+~$*
